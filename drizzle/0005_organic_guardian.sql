@@ -1,0 +1,1 @@
+ALTER TABLE `portfolio_items` ADD `area` text DEFAULT 'Não informada' NOT NULL;

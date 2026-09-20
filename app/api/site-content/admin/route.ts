@@ -61,6 +61,7 @@ export async function POST(request: Request) {
     const form = await request.formData();
     const id = clean(form.get("id"), 80);
     const title = clean(form.get("title"), 120);
+    const area = clean(form.get("area"), 40);
     const serviceType = clean(form.get("serviceType"), 120);
     const serviceMode = clean(form.get("serviceMode"), 20);
     const city = clean(form.get("city"), 100);
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
     const featured = clean(form.get("featured"), 10) === "true";
     const fileValue = form.get("image");
     const file = fileValue instanceof File && fileValue.size > 0 ? fileValue : null;
-    if (!title || !serviceType || !["Instalação", "Manutenção"].includes(serviceMode) || !summary || !altText || !["Rascunho", "Publicado"].includes(status)) return Response.json({ error: "Preencha título, serviço, modalidade, descrição, texto alternativo e situação" }, { status: 400 });
+    if (!title || !["Residencial", "Condomínios", "Empresarial"].includes(area) || !serviceType || !["Instalação", "Manutenção"].includes(serviceMode) || !summary || !altText || !["Rascunho", "Publicado"].includes(status)) return Response.json({ error: "Preencha título, área, serviço, modalidade, descrição, texto alternativo e situação" }, { status: 400 });
     if (file && (!allowedImages.has(file.type) || file.size > maxImageBytes)) return Response.json({ error: "Use imagem JPG, PNG ou WEBP com até 8 MB" }, { status: 400 });
     const db = getDb();
     const [before] = id ? await db.select().from(portfolioItems).where(and(eq(portfolioItems.id, id), isNull(portfolioItems.deletedAt))).limit(1) : [];
@@ -92,9 +93,9 @@ export async function POST(request: Request) {
     const updatedAt = now();
     let saved: typeof portfolioItems.$inferSelect;
     if (before) {
-      [saved] = await db.update(portfolioItems).set({ title, serviceType, serviceMode, city, completedAt, summary, imageObjectKey, imageName, imageType, altText, status, sortOrder, featured, updatedBy: auth.actor!, updatedAt }).where(eq(portfolioItems.id, itemId)).returning();
+      [saved] = await db.update(portfolioItems).set({ title, area, serviceType, serviceMode, city, completedAt, summary, imageObjectKey, imageName, imageType, altText, status, sortOrder, featured, updatedBy: auth.actor!, updatedAt }).where(eq(portfolioItems.id, itemId)).returning();
     } else {
-      [saved] = await db.insert(portfolioItems).values({ id: itemId, title, serviceType, serviceMode, city, completedAt, summary, imageObjectKey, imageName, imageType, altText, status, sortOrder, featured, createdBy: auth.actor!, updatedBy: auth.actor!, updatedAt }).returning();
+      [saved] = await db.insert(portfolioItems).values({ id: itemId, title, area, serviceType, serviceMode, city, completedAt, summary, imageObjectKey, imageName, imageType, altText, status, sortOrder, featured, createdBy: auth.actor!, updatedBy: auth.actor!, updatedAt }).returning();
     }
     const safeSaved = publicItem(saved);
     await audit(itemId, before ? "Edição" : "Criação", `${before ? "Serviço realizado atualizado" : "Serviço realizado cadastrado"}: ${title}`, auth.actor!, before ? publicItem(before) : undefined, safeSaved);

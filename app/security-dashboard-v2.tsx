@@ -3,7 +3,7 @@
 import * as React from "react";
 import {
   BarChart3, Bell, Boxes, CircleDollarSign, ClipboardList, FileCheck2, FileText,
-  Camera, Download, History, LayoutDashboard, Menu, Pencil, PenLine, Plus, Search, ShieldCheck, Trash2, Upload, Users, Wrench, PanelsTopLeft,
+  Camera, Download, History, Images, LayoutDashboard, Menu, Pencil, PenLine, Plus, Search, ShieldCheck, Trash2, Upload, Users, Wrench, PanelsTopLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { Toaster } from "@/components/ui/sonner";
@@ -21,7 +21,8 @@ import { buildContractClauses } from "@/lib/contract-clauses";
 import { SiteContentManager } from "./site-content-manager";
 
 type EntityKey = "customers" | "quotes" | "contracts" | "orders" | "catalog" | "finance";
-type NavKey = "overview" | EntityKey | "site-content" | "reports" | "audit";
+type NavKey = "overview" | EntityKey | "portfolio" | "site-content" | "reports" | "audit";
+type PortfolioFilter = { area?: string; serviceType?: string };
 type Row = Record<string, unknown> & { id: string };
 type AuditRow = Row & { entityType: string; entityId: string; action: string; description: string; actorName: string; createdAt: string };
 type DataBundle = Record<EntityKey, Row[]> & { audit: AuditRow[] };
@@ -34,6 +35,19 @@ const serviceTypes = [
   "Automação residencial", "Alarmes monitorados", "Câmeras de segurança / CFTV", "Controle de acesso",
   "Concertinas", "Cercas elétricas", "Desenvolvimento de aplicações", "Interfonia e vídeo porteiro",
   "Motores automatizadores de portão", "Imagens de alta resolução com drone",
+];
+const serviceAreas = ["Residencial", "Condomínios", "Empresarial"];
+const portfolioServiceLabels: Array<[string, string]> = [
+  ["Automação", "Automação residencial"],
+  ["Alarmes", "Alarmes monitorados"],
+  ["CFTV", "Câmeras de segurança / CFTV"],
+  ["Controle de acesso", "Controle de acesso"],
+  ["Concertinas", "Concertinas"],
+  ["Cercas elétricas", "Cercas elétricas"],
+  ["Aplicações", "Desenvolvimento de aplicações"],
+  ["Interfonia", "Interfonia e vídeo porteiro"],
+  ["Portões automáticos", "Motores automatizadores de portão"],
+  ["Drone", "Imagens de alta resolução com drone"],
 ];
 const modes = ["Instalação", "Manutenção"];
 const emptyData: DataBundle = { customers: [], quotes: [], contracts: [], orders: [], catalog: [], finance: [], audit: [] };
@@ -151,6 +165,7 @@ function displayDate(value: unknown) {
 
 export function SecurityDashboardV2({ userName, userEmail }: { userName: string; userEmail: string }) {
   const [active, setActive] = React.useState<NavKey>("overview");
+  const [portfolioFilter, setPortfolioFilter] = React.useState<PortfolioFilter>({});
   const [data, setData] = React.useState<DataBundle>(emptyData);
   const [loading, setLoading] = React.useState(true);
   const [search, setSearch] = React.useState("");
@@ -204,7 +219,24 @@ export function SecurityDashboardV2({ userName, userEmail }: { userName: string;
       <SidebarContent className="px-2 py-4"><SidebarGroup><SidebarGroupLabel className="px-3 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-[#a79d7e]">Gestão integrada</SidebarGroupLabel><SidebarGroupContent><SidebarMenu>
         <NavButton active={active === "overview"} label="Visão geral" icon={LayoutDashboard} onClick={() => setActive("overview")} />
         {modules.map((module) => <NavButton key={module.key} active={active === module.key} label={module.label} icon={module.icon} onClick={() => setActive(module.key)} />)}
-        <NavButton active={active === "site-content"} label="Conteúdo do site" icon={PanelsTopLeft} onClick={() => setActive("site-content")} />
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            isActive={active === "portfolio"}
+            tooltip="Serviços realizados"
+            onClick={() => { setActive("portfolio"); setPortfolioFilter({}); }}
+            className="h-10 text-stone-300 hover:bg-white/8 hover:text-white data-[active=true]:bg-amber-400/15 data-[active=true]:text-amber-200"
+          >
+            <Images /><span>Serviços realizados</span>
+          </SidebarMenuButton>
+          {active === "portfolio" && <SidebarMenuSub className="portfolio-sidebar-sub">
+            <PortfolioSubButton active={!portfolioFilter.area && !portfolioFilter.serviceType} label="Todos os serviços" onClick={() => setPortfolioFilter({})} />
+            <li className="portfolio-sub-label">Por área</li>
+            {serviceAreas.map((area) => <PortfolioSubButton key={area} active={portfolioFilter.area === area} label={area} onClick={() => setPortfolioFilter({ area })} />)}
+            <li className="portfolio-sub-label">Por tipo de serviço</li>
+            {portfolioServiceLabels.map(([label, serviceType]) => <PortfolioSubButton key={serviceType} active={portfolioFilter.serviceType === serviceType} label={label} onClick={() => setPortfolioFilter({ serviceType })} />)}
+          </SidebarMenuSub>}
+        </SidebarMenuItem>
+        <NavButton active={active === "site-content"} label="Textos da página" icon={PanelsTopLeft} onClick={() => setActive("site-content")} />
         <NavButton active={active === "reports"} label="Relatórios" icon={BarChart3} onClick={() => setActive("reports")} />
         <NavButton active={active === "audit"} label="Auditoria" icon={History} onClick={() => setActive("audit")} />
       </SidebarMenu></SidebarGroupContent></SidebarGroup></SidebarContent>
@@ -214,7 +246,8 @@ export function SecurityDashboardV2({ userName, userEmail }: { userName: string;
       <main className="workspace">
         {active === "overview" && <Overview data={data} loading={loading} onOpen={(key) => setActive(key)} />}
         {currentModule && <ModuleView config={currentModule} rows={data[currentModule.key]} query={search} loading={loading} onNew={() => setEditor({ entity: currentModule.key })} onEdit={(record) => setEditor({ entity: currentModule.key, record })} onDelete={(record) => setDeleteTarget({ entity: currentModule.key, record })} onSign={setSignatureTarget} onPhotos={setPhotosTarget} />}
-        {active === "site-content" && <SiteContentManager onAuditChanged={loadData} />}
+        {active === "portfolio" && <SiteContentManager section="portfolio" areaFilter={portfolioFilter.area} serviceTypeFilter={portfolioFilter.serviceType} onAuditChanged={loadData} />}
+        {active === "site-content" && <SiteContentManager section="texts" onAuditChanged={loadData} />}
         {active === "reports" && <Reports data={data} />}
         {active === "audit" && <AuditView rows={data.audit} query={search} loading={loading} />}
       </main>
@@ -230,6 +263,9 @@ export function SecurityDashboardV2({ userName, userEmail }: { userName: string;
 function NavButton({ active, label, icon: Icon, onClick }: { active: boolean; label: string; icon: React.ElementType; onClick: () => void }) {
   return <SidebarMenuItem><SidebarMenuButton isActive={active} tooltip={label} onClick={onClick} className="h-10 text-stone-300 hover:bg-white/8 hover:text-white data-[active=true]:bg-amber-400/15 data-[active=true]:text-amber-200"><Icon /><span>{label}</span></SidebarMenuButton></SidebarMenuItem>;
 }
+function PortfolioSubButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+  return <SidebarMenuSubItem><SidebarMenuSubButton href="#portfolio" isActive={active} onClick={(event) => { event.preventDefault(); onClick(); }} className="text-stone-400 hover:bg-white/8 hover:text-white data-[active=true]:bg-amber-400/10 data-[active=true]:text-amber-200"><span>{label}</span></SidebarMenuSubButton></SidebarMenuSubItem>;
+}
 function PageHeading({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: React.ReactNode }) {
   return <div className="page-heading"><div><span className="eyebrow">{eyebrow}</span><h1>{title}</h1><p>{description}</p></div>{action}</div>;
 }
@@ -238,7 +274,7 @@ function Overview({ data, loading, onOpen }: { data: DataBundle; loading: boolea
   const activeOrders = data.orders.filter((order) => !["Concluída", "Cancelada"].includes(String(order.status))).length;
   return <><PageHeading eyebrow="Gestão integrada" title="Visão geral da operação" description="Indicadores calculados exclusivamente a partir dos registros cadastrados na plataforma." />
     <section className="metric-grid"><Metric label="Clientes ativos" value={loading ? "…" : String(data.customers.filter((item) => item.status === "Ativo").length)} icon={Users} /><Metric label="Propostas" value={loading ? "…" : String(data.quotes.length)} icon={FileText} /><Metric label="OS em andamento" value={loading ? "…" : String(activeOrders)} icon={Wrench} /><Metric label="Financeiro em aberto" value={loading ? "…" : money(pending)} icon={CircleDollarSign} /></section>
-    <section className="management-grid">{modules.map((module) => <button className="management-card" key={module.key} onClick={() => onOpen(module.key)}><span className="management-icon"><module.icon /></span><span><strong>{module.label}</strong><small>{data[module.key].length} registro(s)</small></span><span className="management-arrow">→</span></button>)}<button className="management-card" onClick={() => onOpen("site-content")}><span className="management-icon"><PanelsTopLeft /></span><span><strong>Conteúdo do site</strong><small>Textos e serviços realizados</small></span><span className="management-arrow">→</span></button></section>
+    <section className="management-grid">{modules.map((module) => <button className="management-card" key={module.key} onClick={() => onOpen(module.key)}><span className="management-icon"><module.icon /></span><span><strong>{module.label}</strong><small>{data[module.key].length} registro(s)</small></span><span className="management-arrow">→</span></button>)}<button className="management-card" onClick={() => onOpen("portfolio")}><span className="management-icon"><Images /></span><span><strong>Serviços realizados</strong><small>Imagens e portfólio real</small></span><span className="management-arrow">→</span></button><button className="management-card" onClick={() => onOpen("site-content")}><span className="management-icon"><PanelsTopLeft /></span><span><strong>Textos da página</strong><small>Conteúdo institucional da landing page</small></span><span className="management-arrow">→</span></button></section>
     <section className="panel page-panel"><div className="panel-head"><div><span className="eyebrow">Atividade recente</span><h2>Últimos registros de auditoria</h2></div><Button variant="outline" onClick={() => onOpen("audit")}>Ver auditoria</Button></div><AuditTable rows={data.audit.slice(0, 5)} /></section>
   </>;
 }

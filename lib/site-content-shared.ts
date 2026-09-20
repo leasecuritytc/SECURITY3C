@@ -8,7 +8,7 @@ export type LandingContent = {
 };
 
 export type PublicPortfolioItem = {
-  id: string; title: string; serviceType: string; serviceMode: string; city: string; completedAt: string;
+  id: string; title: string; area: string; serviceType: string; serviceMode: string; city: string; completedAt: string;
   summary: string; altText: string; featured: boolean; sortOrder: number; status?: string; imageName?: string; imageUrl: string;
 };
 

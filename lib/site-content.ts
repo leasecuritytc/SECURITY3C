@@ -21,6 +21,7 @@ export async function getPublicSiteData(): Promise<{ content: LandingContent; po
       portfolio: items.map((item) => ({
         id: item.id,
         title: item.title,
+        area: item.area,
         serviceType: item.serviceType,
         serviceMode: item.serviceMode,
         city: item.city,

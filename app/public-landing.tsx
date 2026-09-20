@@ -151,7 +151,7 @@ export function PublicLanding({ canOpenDashboard, content, portfolio }: { canOpe
                       <article className="portfolio-card">
                         <div className="portfolio-image"><img src={item.imageUrl} alt={item.altText} loading="lazy" />{item.featured && <span className="portfolio-featured">Destaque</span>}</div>
                         <div className="portfolio-card-body">
-                          <div className="portfolio-tags"><span>{item.serviceMode}</span><span>{item.serviceType}</span></div>
+                          <div className="portfolio-tags"><span>{item.serviceMode}</span><span>{item.area}</span><span>{item.serviceType}</span></div>
                           <h3>{item.title}</h3>
                           <p>{item.summary}</p>
                           {(item.city || item.completedAt) && <div className="portfolio-meta">{item.city && <span><MapPin />{item.city}</span>}{item.completedAt && <span><CalendarDays />{new Intl.DateTimeFormat("pt-BR").format(new Date(`${item.completedAt}T12:00:00`))}</span>}</div>}

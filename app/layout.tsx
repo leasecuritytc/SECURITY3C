@@ -8,8 +8,9 @@ export const metadata: Metadata = {
   },
   description: "Instalação e manutenção de segurança eletrônica, automação residencial, controle de acesso, CFTV e soluções inteligentes.",
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
+    icon: [{ url: "/securitytc-logo.png", type: "image/png", sizes: "512x640" }],
+    shortcut: "/securitytc-logo.png",
+    apple: "/securitytc-logo.png",
   },
 };
 

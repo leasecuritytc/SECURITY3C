@@ -111,6 +111,7 @@ export const portfolioItems = sqliteTable("portfolio_items", {
   id: text("id").primaryKey(),
   companyId: text("company_id").notNull().default("securitytc"),
   title: text("title").notNull(),
+  area: text("area").notNull().default("Não informada"),
   serviceType: text("service_type").notNull(),
   serviceMode: text("service_mode").notNull(),
   city: text("city").notNull().default(""),

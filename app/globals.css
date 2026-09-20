@@ -63,6 +63,8 @@
 
 .site-content-tabs { display: grid; gap: 1rem; }
 .site-content-tabs > [role="tablist"] { width: fit-content; background: #e7e9df; }
+.portfolio-sidebar-sub { max-height: 24rem; margin-top: .35rem; overflow-y: auto; padding-bottom: .55rem; }
+.portfolio-sub-label { padding: .72rem .5rem .2rem; color: #a79d7e; font-size: .62rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .cms-loading, .cms-empty { display: flex; min-height: 260px; align-items: center; justify-content: center; flex-direction: column; gap: .7rem; padding: 2rem; color: #647064; text-align: center; }
 .cms-empty > svg { width: 38px; height: 38px; color: #b88b23; }
 .cms-empty strong { color: #17251d; font-size: 1.15rem; }
