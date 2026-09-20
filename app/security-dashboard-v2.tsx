@@ -3,7 +3,7 @@
 import * as React from "react";
 import {
   BarChart3, Bell, Boxes, CircleDollarSign, ClipboardList, FileCheck2, FileText,
-  Camera, Download, History, LayoutDashboard, Menu, Pencil, PenLine, Plus, Search, ShieldCheck, Trash2, Upload, Users, Wrench,
+  Camera, Download, History, LayoutDashboard, Menu, Pencil, PenLine, Plus, Search, ShieldCheck, Trash2, Upload, Users, Wrench, PanelsTopLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -18,9 +18,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Toaster } from "@/components/ui/sonner";
 import { buildContractClauses } from "@/lib/contract-clauses";
+import { SiteContentManager } from "./site-content-manager";
 
 type EntityKey = "customers" | "quotes" | "contracts" | "orders" | "catalog" | "finance";
-type NavKey = "overview" | EntityKey | "reports" | "audit";
+type NavKey = "overview" | EntityKey | "site-content" | "reports" | "audit";
 type Row = Record<string, unknown> & { id: string };
 type AuditRow = Row & { entityType: string; entityId: string; action: string; description: string; actorName: string; createdAt: string };
 type DataBundle = Record<EntityKey, Row[]> & { audit: AuditRow[] };
@@ -203,6 +204,7 @@ export function SecurityDashboardV2({ userName, userEmail }: { userName: string;
       <SidebarContent className="px-2 py-4"><SidebarGroup><SidebarGroupLabel className="px-3 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-[#a79d7e]">Gestão integrada</SidebarGroupLabel><SidebarGroupContent><SidebarMenu>
         <NavButton active={active === "overview"} label="Visão geral" icon={LayoutDashboard} onClick={() => setActive("overview")} />
         {modules.map((module) => <NavButton key={module.key} active={active === module.key} label={module.label} icon={module.icon} onClick={() => setActive(module.key)} />)}
+        <NavButton active={active === "site-content"} label="Conteúdo do site" icon={PanelsTopLeft} onClick={() => setActive("site-content")} />
         <NavButton active={active === "reports"} label="Relatórios" icon={BarChart3} onClick={() => setActive("reports")} />
         <NavButton active={active === "audit"} label="Auditoria" icon={History} onClick={() => setActive("audit")} />
       </SidebarMenu></SidebarGroupContent></SidebarGroup></SidebarContent>
@@ -212,6 +214,7 @@ export function SecurityDashboardV2({ userName, userEmail }: { userName: string;
       <main className="workspace">
         {active === "overview" && <Overview data={data} loading={loading} onOpen={(key) => setActive(key)} />}
         {currentModule && <ModuleView config={currentModule} rows={data[currentModule.key]} query={search} loading={loading} onNew={() => setEditor({ entity: currentModule.key })} onEdit={(record) => setEditor({ entity: currentModule.key, record })} onDelete={(record) => setDeleteTarget({ entity: currentModule.key, record })} onSign={setSignatureTarget} onPhotos={setPhotosTarget} />}
+        {active === "site-content" && <SiteContentManager onAuditChanged={loadData} />}
         {active === "reports" && <Reports data={data} />}
         {active === "audit" && <AuditView rows={data.audit} query={search} loading={loading} />}
       </main>
@@ -235,7 +238,7 @@ function Overview({ data, loading, onOpen }: { data: DataBundle; loading: boolea
   const activeOrders = data.orders.filter((order) => !["Concluída", "Cancelada"].includes(String(order.status))).length;
   return <><PageHeading eyebrow="Gestão integrada" title="Visão geral da operação" description="Indicadores calculados exclusivamente a partir dos registros cadastrados na plataforma." />
     <section className="metric-grid"><Metric label="Clientes ativos" value={loading ? "…" : String(data.customers.filter((item) => item.status === "Ativo").length)} icon={Users} /><Metric label="Propostas" value={loading ? "…" : String(data.quotes.length)} icon={FileText} /><Metric label="OS em andamento" value={loading ? "…" : String(activeOrders)} icon={Wrench} /><Metric label="Financeiro em aberto" value={loading ? "…" : money(pending)} icon={CircleDollarSign} /></section>
-    <section className="management-grid">{modules.map((module) => <button className="management-card" key={module.key} onClick={() => onOpen(module.key)}><span className="management-icon"><module.icon /></span><span><strong>{module.label}</strong><small>{data[module.key].length} registro(s)</small></span><span className="management-arrow">→</span></button>)}</section>
+    <section className="management-grid">{modules.map((module) => <button className="management-card" key={module.key} onClick={() => onOpen(module.key)}><span className="management-icon"><module.icon /></span><span><strong>{module.label}</strong><small>{data[module.key].length} registro(s)</small></span><span className="management-arrow">→</span></button>)}<button className="management-card" onClick={() => onOpen("site-content")}><span className="management-icon"><PanelsTopLeft /></span><span><strong>Conteúdo do site</strong><small>Textos e serviços realizados</small></span><span className="management-arrow">→</span></button></section>
     <section className="panel page-panel"><div className="panel-head"><div><span className="eyebrow">Atividade recente</span><h2>Últimos registros de auditoria</h2></div><Button variant="outline" onClick={() => onOpen("audit")}>Ver auditoria</Button></div><AuditTable rows={data.audit.slice(0, 5)} /></section>
   </>;
 }
@@ -315,5 +318,5 @@ function Reports({ data }: { data: DataBundle }) {
   const maintenance = commercial.filter((row) => row.serviceMode === "Manutenção").length;
   const received = data.finance.filter((row) => row.status === "Pago").reduce((sum, row) => sum + Number(row.amount || 0), 0);
   const open = data.finance.filter((row) => row.status === "Pendente" || row.status === "Vencido").reduce((sum, row) => sum + Number(row.amount || 0), 0);
-  return <><PageHeading eyebrow="Indicadores reais" title="Relatórios gerenciais" description="Consolidação calculada a partir dos cadastros existentes, sem projeções ou valores fictícios." /><section className="metric-grid"><Metric label="Atendimentos de instalação" value={String(installation)} icon={Boxes} /><Metric label="Atendimentos de manutenção" value={String(maintenance)} icon={Wrench} /><Metric label="Valores recebidos" value={money(received)} icon={CircleDollarSign} /><Metric label="Valores em aberto" value={money(open)} icon={CircleDollarSign} /></section><section className="report-summary"><article className="panel"><span className="eyebrow">Base operacional</span><h2>Registros por módulo</h2>{modules.map((module) => <div className="summary-row" key={module.key}><span>{module.label}</span><strong>{data[module.key].length}</strong></div>)}</article><article className="panel"><span className="eyebrow">Classificação</span><h2>Instalação x manutenção</h2><div className="mode-total installation"><Boxes /><span>Instalação</span><strong>{installation}</strong></div><div className="mode-total maintenance"><Wrench /><span>Manutenção</span><strong>{maintenance}</strong></div><p className="report-footnote">São considerados orçamentos, contratos e ordens de serviço cadastrados.</p></article></section></>;
+  return <><PageHeading eyebrow="Indicadores reais" title="Relatórios gerenciais" description="Consolidação calculada a partir dos cadastros existentes, sem projeções ou valores fictícios." action={<Button className="primary-action" asChild><a href="/api/documents/reports/summary"><Download size={17} /> Baixar relatório em PDF</a></Button>} /><section className="metric-grid"><Metric label="Atendimentos de instalação" value={String(installation)} icon={Boxes} /><Metric label="Atendimentos de manutenção" value={String(maintenance)} icon={Wrench} /><Metric label="Valores recebidos" value={money(received)} icon={CircleDollarSign} /><Metric label="Valores em aberto" value={money(open)} icon={CircleDollarSign} /></section><section className="report-summary"><article className="panel"><span className="eyebrow">Base operacional</span><h2>Registros por módulo</h2>{modules.map((module) => <div className="summary-row" key={module.key}><span>{module.label}</span><strong>{data[module.key].length}</strong></div>)}</article><article className="panel"><span className="eyebrow">Classificação</span><h2>Instalação x manutenção</h2><div className="mode-total installation"><Boxes /><span>Instalação</span><strong>{installation}</strong></div><div className="mode-total maintenance"><Wrench /><span>Manutenção</span><strong>{maintenance}</strong></div><p className="report-footnote">São considerados orçamentos, contratos e ordens de serviço cadastrados.</p></article></section></>;
 }

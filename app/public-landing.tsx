@@ -4,8 +4,10 @@ import * as React from "react";
 import {
   ArrowRight, ArrowUpRight, AtSign, BellRing, Camera, Check, ChevronRight, CircleCheck,
   Cpu, DoorOpen, Drone, Fence, House, Menu, MessageSquareText,
-  MonitorSmartphone, Play, ScanFace, ShieldCheck, Sparkles, Video, Wrench, X,
+  MonitorSmartphone, Play, ScanFace, ShieldCheck, Sparkles, Video, Wrench, X, MapPin, CalendarDays, Images,
 } from "lucide-react";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "../components/ui/carousel";
+import type { LandingContent, PublicPortfolioItem } from "../lib/site-content-shared";
 
 const services = [
   { title: "Automação residencial", text: "Cenários de iluminação, dispositivos e rotinas integradas.", icon: House },
@@ -22,7 +24,7 @@ const services = [
 
 const serviceNames = services.map((service) => service.title);
 
-export function PublicLanding({ canOpenDashboard }: { canOpenDashboard: boolean }) {
+export function PublicLanding({ canOpenDashboard, content, portfolio }: { canOpenDashboard: boolean; content: LandingContent; portfolio: PublicPortfolioItem[] }) {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [sending, setSending] = React.useState(false);
   const [result, setResult] = React.useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -63,6 +65,7 @@ export function PublicLanding({ canOpenDashboard }: { canOpenDashboard: boolean 
         </a>
         <nav className={`landing-nav ${menuOpen ? "is-open" : ""}`} aria-label="Navegação principal">
           <a href="#solucoes" onClick={() => setMenuOpen(false)}>Soluções</a>
+          <a href="#realizados" onClick={() => setMenuOpen(false)}>Serviços realizados</a>
           <a href="#processo" onClick={() => setMenuOpen(false)}>Como trabalhamos</a>
           <a href="#tecnologia" onClick={() => setMenuOpen(false)}>Tecnologia</a>
           <a href="#orcamento" onClick={() => setMenuOpen(false)}>Orçamento</a>
@@ -79,9 +82,9 @@ export function PublicLanding({ canOpenDashboard }: { canOpenDashboard: boolean 
           <div className="hero-backdrop" aria-hidden="true"><img src="/media/security-camera-hero.webp" alt="" /></div>
           <div className="hero-grid landing-container">
             <div className="hero-copy">
-              <span className="landing-eyebrow"><span /> Segurança eletrônica • Automação • Tecnologia</span>
-              <h1>Tecnologia que <em>protege</em>, conecta e simplifica.</h1>
-              <p>Projetos de instalação e manutenção pensados para residências, condomínios e empresas — do diagnóstico à documentação do serviço.</p>
+              <span className="landing-eyebrow"><span /> {content.heroEyebrow}</span>
+              <h1>{content.heroTitle}</h1>
+              <p>{content.heroDescription}</p>
               <div className="hero-actions">
                 <a className="landing-button landing-button-primary" href="#orcamento">Solicitar orçamento <ArrowRight size={18} /></a>
                 <a className="landing-button landing-button-secondary" href="#solucoes">Conhecer soluções</a>
@@ -118,8 +121,8 @@ export function PublicLanding({ canOpenDashboard }: { canOpenDashboard: boolean 
         <section className="landing-section services-section" id="solucoes">
           <div className="landing-container">
             <div className="section-heading">
-              <div><span className="landing-eyebrow"><span /> Soluções</span><h2>Proteção e tecnologia sob medida para o seu espaço.</h2></div>
-              <p>Escolha a necessidade principal. Na proposta, o serviço é detalhado como instalação ou manutenção, com escopo e condições definidos.</p>
+              <div><span className="landing-eyebrow"><span /> Soluções</span><h2>{content.solutionsTitle}</h2></div>
+              <p>{content.solutionsDescription}</p>
             </div>
             <div className="services-grid">
               {services.map(({ title, text, icon: Icon }, index) => (
@@ -134,12 +137,44 @@ export function PublicLanding({ canOpenDashboard }: { canOpenDashboard: boolean 
           </div>
         </section>
 
+        <section className="landing-section portfolio-section" id="realizados">
+          <div className="landing-container">
+            <div className="section-heading">
+              <div><span className="landing-eyebrow"><span /> Portfólio real</span><h2>{content.portfolioTitle}</h2></div>
+              <p>{content.portfolioDescription}</p>
+            </div>
+            {portfolio.length > 0 ? (
+              <Carousel opts={{ align: "start", loop: portfolio.length > 3 }} className="portfolio-carousel">
+                <CarouselContent>
+                  {portfolio.map((item) => (
+                    <CarouselItem key={item.id} className="md:basis-1/2 lg:basis-1/3">
+                      <article className="portfolio-card">
+                        <div className="portfolio-image"><img src={item.imageUrl} alt={item.altText} loading="lazy" />{item.featured && <span className="portfolio-featured">Destaque</span>}</div>
+                        <div className="portfolio-card-body">
+                          <div className="portfolio-tags"><span>{item.serviceMode}</span><span>{item.serviceType}</span></div>
+                          <h3>{item.title}</h3>
+                          <p>{item.summary}</p>
+                          {(item.city || item.completedAt) && <div className="portfolio-meta">{item.city && <span><MapPin />{item.city}</span>}{item.completedAt && <span><CalendarDays />{new Intl.DateTimeFormat("pt-BR").format(new Date(`${item.completedAt}T12:00:00`))}</span>}</div>}
+                        </div>
+                      </article>
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+                <CarouselPrevious className="portfolio-prev" />
+                <CarouselNext className="portfolio-next" />
+              </Carousel>
+            ) : (
+              <div className="portfolio-empty"><span><Images /></span><div><strong>Portfólio em preparação</strong><p>Projetos reais serão publicados aqui pela equipe Security3C após o cadastro na área restrita.</p></div></div>
+            )}
+          </div>
+        </section>
+
         <section className="landing-section process-section" id="processo">
           <div className="landing-container process-layout">
             <div className="process-intro">
               <span className="landing-eyebrow"><span /> Como trabalhamos</span>
-              <h2>Do primeiro contato à execução, com clareza em cada etapa.</h2>
-              <p>O orçamento nasce da necessidade informada e separa corretamente o tipo de atendimento, os serviços e o escopo.</p>
+              <h2>{content.processTitle}</h2>
+              <p>{content.processDescription}</p>
               <a className="text-link" href="#orcamento">Iniciar uma solicitação <ArrowRight /></a>
             </div>
             <ol className="process-list">
@@ -153,8 +188,8 @@ export function PublicLanding({ canOpenDashboard }: { canOpenDashboard: boolean 
         <section className="landing-section media-section" id="tecnologia">
           <div className="landing-container">
             <div className="section-heading light-heading">
-              <div><span className="landing-eyebrow"><span /> Tecnologia em foco</span><h2>Veja como diferentes soluções podem compor um projeto integrado.</h2></div>
-              <p>Galeria visual ilustrativa. Para acompanhar conteúdos e registros publicados pela Security3C, acesse o perfil oficial no Instagram.</p>
+              <div><span className="landing-eyebrow"><span /> Tecnologia em foco</span><h2>{content.technologyTitle}</h2></div>
+              <p>{content.technologyDescription}</p>
             </div>
             <div className="media-grid">
               <figure className="media-video-card">
@@ -175,8 +210,8 @@ export function PublicLanding({ canOpenDashboard }: { canOpenDashboard: boolean 
           <div className="landing-container quote-layout">
             <div className="quote-copy">
               <span className="landing-eyebrow"><span /> Solicite seu orçamento</span>
-              <h2>Conte o que você precisa. A solicitação entra direto na gestão comercial.</h2>
-              <p>Preencha os dados essenciais para a equipe entender o serviço. Nenhum valor ou prazo é presumido no envio.</p>
+              <h2>{content.quoteTitle}</h2>
+              <p>{content.quoteDescription}</p>
               <div className="quote-feature"><MessageSquareText /><div><strong>Contato organizado</strong><span>Seu pedido será registrado como lead para acompanhamento.</span></div></div>
               <div className="quote-feature"><Wrench /><div><strong>Instalação ou manutenção</strong><span>O tipo de atendimento já segue identificado desde o primeiro contato.</span></div></div>
               <div className="quote-feature"><ShieldCheck /><div><strong>Uso responsável dos dados</strong><span>As informações são usadas para responder à solicitação e registrar o atendimento.</span></div></div>
@@ -203,8 +238,8 @@ export function PublicLanding({ canOpenDashboard }: { canOpenDashboard: boolean 
 
       <footer className="landing-footer">
         <div className="landing-container footer-main">
-          <div className="footer-brand"><img src="/securitytc-logo.png" alt="Security3C Soluções Inteligentes" /><div><strong>SECURITY3C</strong><span>Soluções inteligentes em segurança, automação e tecnologia.</span></div></div>
-          <div className="footer-links"><strong>Navegação</strong><a href="#solucoes">Soluções</a><a href="#processo">Como trabalhamos</a><a href="#orcamento">Solicitar orçamento</a></div>
+          <div className="footer-brand"><img src="/securitytc-logo.png" alt="Security3C Soluções Inteligentes" /><div><strong>SECURITY3C</strong><span>{content.footerDescription}</span></div></div>
+          <div className="footer-links"><strong>Navegação</strong><a href="#solucoes">Soluções</a><a href="#realizados">Serviços realizados</a><a href="#processo">Como trabalhamos</a><a href="#orcamento">Solicitar orçamento</a></div>
           <div className="footer-links"><strong>Redes e acesso</strong><a href="https://www.instagram.com/security3c/" target="_blank" rel="noreferrer">Instagram @security3c</a><a href="https://www.instagram.com/evertonandradetc/" target="_blank" rel="noreferrer">Instagram @evertonandradetc</a><a href={canOpenDashboard ? "/acesso-restrito" : "/login"}>Área restrita</a></div>
         </div>
         <div className="landing-container footer-privacy" id="privacidade"><strong>Aviso de privacidade</strong><p>Os dados enviados no formulário são usados para responder ao pedido de orçamento e registrar o atendimento comercial. Não informe senhas, documentos ou outros dados sensíveis no campo de mensagem. Para solicitar correção ou exclusão, use os canais oficiais da Security3C.</p></div>

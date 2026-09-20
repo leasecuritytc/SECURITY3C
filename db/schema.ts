@@ -98,3 +98,36 @@ export const leadRateLimits = sqliteTable("lead_rate_limits", {
   windowStartedAt: integer("window_started_at").notNull(),
   requestCount: integer("request_count").notNull().default(1),
 });
+
+export const siteContent = sqliteTable("site_content", {
+  id: text("id").primaryKey(),
+  companyId: text("company_id").notNull().default("securitytc"),
+  contentJson: text("content_json").notNull(),
+  updatedBy: text("updated_by").notNull(),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const portfolioItems = sqliteTable("portfolio_items", {
+  id: text("id").primaryKey(),
+  companyId: text("company_id").notNull().default("securitytc"),
+  title: text("title").notNull(),
+  serviceType: text("service_type").notNull(),
+  serviceMode: text("service_mode").notNull(),
+  city: text("city").notNull().default(""),
+  completedAt: text("completed_at").notNull().default(""),
+  summary: text("summary").notNull(),
+  imageObjectKey: text("image_object_key").notNull(),
+  imageName: text("image_name").notNull(),
+  imageType: text("image_type").notNull(),
+  altText: text("alt_text").notNull(),
+  status: text("status").notNull().default("Rascunho"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  featured: integer("featured", { mode: "boolean" }).notNull().default(false),
+  createdBy: text("created_by").notNull(),
+  updatedBy: text("updated_by").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  deletedAt: text("deleted_at"),
+}, (table) => [
+  index("idx_portfolio_company_status_sort").on(table.companyId, table.status, table.sortOrder),
+]);
