@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Toaster } from "@/components/ui/sonner";
 import { buildContractClauses } from "@/lib/contract-clauses";
 import { SiteContentManager } from "./site-content-manager";
+import { FinanceManager } from "./finance-manager";
 
 type EntityKey = "customers" | "quotes" | "contracts" | "orders" | "catalog" | "finance";
 type NavKey = "overview" | EntityKey | "portfolio" | "site-content" | "reports" | "audit";
@@ -195,7 +196,8 @@ export function SecurityDashboardV2({ userName, userEmail }: { userName: string;
       toast.success(id ? "Registro atualizado e auditado" : "Registro cadastrado e auditado");
       setEditor(null);
       await loadData();
-    } catch (error) { toast.error(error instanceof Error ? error.message : "Falha ao salvar"); }
+      return true;
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Falha ao salvar"); return false; }
     finally { setSaving(false); }
   }
   async function deleteRecord() {
@@ -242,17 +244,18 @@ export function SecurityDashboardV2({ userName, userEmail }: { userName: string;
       </SidebarMenu></SidebarGroupContent></SidebarGroup></SidebarContent>
       <SidebarFooter className="border-t border-white/10 p-3"><div className="sidebar-profile"><div className="avatar">{userName.charAt(0).toUpperCase()}</div><div className="brand-copy min-w-0"><strong className="truncate">{userName}</strong><span className="truncate">{userEmail}</span></div></div></SidebarFooter>
     </Sidebar>
-      <SidebarInset className="min-w-0 bg-[#f4f5f0]"><header className="app-header"><div className="header-left"><SidebarTrigger className="text-[#59604b] hover:bg-[#eef0e8]"><Menu /></SidebarTrigger><div className="global-search"><Search size={18} /><input aria-label="Busca global" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar no módulo atual" /></div></div><div className="header-actions"><Button variant="ghost" size="icon" aria-label="Notificações" className="relative"><Bell size={19} /></Button>{currentModule && <Button className="primary-action" onClick={() => setEditor({ entity: currentModule.key })}><Plus size={17} /> {currentModule.key === "orders" ? "Nova" : "Novo"} {currentModule.singular}</Button>}</div></header>
+      <SidebarInset className="min-w-0 bg-[#f4f5f0]"><header className="app-header"><div className="header-left"><SidebarTrigger className="text-[#59604b] hover:bg-[#eef0e8]"><Menu /></SidebarTrigger><div className="global-search"><Search size={18} /><input aria-label="Busca global" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar no módulo atual" /></div></div><div className="header-actions"><Button variant="ghost" size="icon" aria-label="Notificações" className="relative"><Bell size={19} /></Button>{currentModule && currentModule.key !== "finance" && <Button className="primary-action" onClick={() => setEditor({ entity: currentModule.key })}><Plus size={17} /> {currentModule.key === "orders" ? "Nova" : "Novo"} {currentModule.singular}</Button>}</div></header>
       <main className="workspace">
         {active === "overview" && <Overview data={data} loading={loading} onOpen={(key) => setActive(key)} />}
-        {currentModule && <ModuleView config={currentModule} rows={data[currentModule.key]} query={search} loading={loading} onNew={() => setEditor({ entity: currentModule.key })} onEdit={(record) => setEditor({ entity: currentModule.key, record })} onDelete={(record) => setDeleteTarget({ entity: currentModule.key, record })} onSign={setSignatureTarget} onPhotos={setPhotosTarget} />}
+        {currentModule && currentModule.key !== "finance" && <ModuleView config={currentModule} rows={data[currentModule.key]} query={search} loading={loading} onNew={() => setEditor({ entity: currentModule.key })} onEdit={(record) => setEditor({ entity: currentModule.key, record })} onDelete={(record) => setDeleteTarget({ entity: currentModule.key, record })} onSign={setSignatureTarget} onPhotos={setPhotosTarget} />}
+        {active === "finance" && <FinanceManager rows={data.finance} customers={data.customers} query={search} loading={loading} saving={saving} onSave={(values, id) => saveRecord("finance", values, id)} onDelete={(record) => setDeleteTarget({ entity: "finance", record })} />}
         {active === "portfolio" && <SiteContentManager section="portfolio" areaFilter={portfolioFilter.area} serviceTypeFilter={portfolioFilter.serviceType} onAuditChanged={loadData} />}
         {active === "site-content" && <SiteContentManager section="texts" onAuditChanged={loadData} />}
         {active === "reports" && <Reports data={data} />}
         {active === "audit" && <AuditView rows={data.audit} query={search} loading={loading} />}
       </main>
     </SidebarInset>
-    {editor && <RecordDialog key={`${editor.entity}-${editor.record?.id ?? "new"}`} config={modules.find((module) => module.key === editor.entity)!} record={editor.record} saving={saving} onClose={() => setEditor(null)} onSave={(values) => saveRecord(editor.entity, values, editor.record?.id)} />}
+    {editor && <RecordDialog key={`${editor.entity}-${editor.record?.id ?? "new"}`} config={modules.find((module) => module.key === editor.entity)!} record={editor.record} saving={saving} onClose={() => setEditor(null)} onSave={async (values) => { await saveRecord(editor.entity, values, editor.record?.id); }} />}
     {signatureTarget && <SignatureDialog contract={signatureTarget} onClose={() => setSignatureTarget(null)} onSigned={async () => { setSignatureTarget(null); await loadData(); }} />}
     {photosTarget && <PhotosDialog order={photosTarget} onClose={() => setPhotosTarget(null)} onChanged={loadData} />}
     <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir este registro?</AlertDialogTitle><AlertDialogDescription>O registro deixará de aparecer no módulo, mas a exclusão e os dados anteriores permanecerão na trilha de auditoria.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => void deleteRecord()} disabled={saving}>{saving ? "Excluindo..." : "Excluir registro"}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
@@ -270,7 +273,7 @@ function PageHeading({ eyebrow, title, description, action }: { eyebrow: string;
   return <div className="page-heading"><div><span className="eyebrow">{eyebrow}</span><h1>{title}</h1><p>{description}</p></div>{action}</div>;
 }
 function Overview({ data, loading, onOpen }: { data: DataBundle; loading: boolean; onOpen: (key: NavKey) => void }) {
-  const pending = data.finance.filter((entry) => entry.status === "Pendente" || entry.status === "Vencido").reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+  const pending = data.finance.filter((entry) => String(entry.entryType || "Receita") === "Receita" && (entry.status === "Pendente" || entry.status === "Vencido" || entry.status === "Parcial")).reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
   const activeOrders = data.orders.filter((order) => !["Concluída", "Cancelada"].includes(String(order.status))).length;
   return <><PageHeading eyebrow="Gestão integrada" title="Visão geral da operação" description="Indicadores calculados exclusivamente a partir dos registros cadastrados na plataforma." />
     <section className="metric-grid"><Metric label="Clientes ativos" value={loading ? "…" : String(data.customers.filter((item) => item.status === "Ativo").length)} icon={Users} /><Metric label="Propostas" value={loading ? "…" : String(data.quotes.length)} icon={FileText} /><Metric label="OS em andamento" value={loading ? "…" : String(activeOrders)} icon={Wrench} /><Metric label="Financeiro em aberto" value={loading ? "…" : money(pending)} icon={CircleDollarSign} /></section>
@@ -352,7 +355,7 @@ function Reports({ data }: { data: DataBundle }) {
   const commercial = [...data.quotes, ...data.contracts, ...data.orders];
   const installation = commercial.filter((row) => row.serviceMode === "Instalação").length;
   const maintenance = commercial.filter((row) => row.serviceMode === "Manutenção").length;
-  const received = data.finance.filter((row) => row.status === "Pago").reduce((sum, row) => sum + Number(row.amount || 0), 0);
-  const open = data.finance.filter((row) => row.status === "Pendente" || row.status === "Vencido").reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const received = data.finance.filter((row) => String(row.entryType || "Receita") === "Receita" && row.status === "Pago").reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const open = data.finance.filter((row) => String(row.entryType || "Receita") === "Receita" && (row.status === "Pendente" || row.status === "Vencido" || row.status === "Parcial")).reduce((sum, row) => sum + Number(row.amount || 0), 0);
   return <><PageHeading eyebrow="Indicadores reais" title="Relatórios gerenciais" description="Consolidação calculada a partir dos cadastros existentes, sem projeções ou valores fictícios." action={<Button className="primary-action" asChild><a href="/api/documents/reports/summary"><Download size={17} /> Baixar relatório em PDF</a></Button>} /><section className="metric-grid"><Metric label="Atendimentos de instalação" value={String(installation)} icon={Boxes} /><Metric label="Atendimentos de manutenção" value={String(maintenance)} icon={Wrench} /><Metric label="Valores recebidos" value={money(received)} icon={CircleDollarSign} /><Metric label="Valores em aberto" value={money(open)} icon={CircleDollarSign} /></section><section className="report-summary"><article className="panel"><span className="eyebrow">Base operacional</span><h2>Registros por módulo</h2>{modules.map((module) => <div className="summary-row" key={module.key}><span>{module.label}</span><strong>{data[module.key].length}</strong></div>)}</article><article className="panel"><span className="eyebrow">Classificação</span><h2>Instalação x manutenção</h2><div className="mode-total installation"><Boxes /><span>Instalação</span><strong>{installation}</strong></div><div className="mode-total maintenance"><Wrench /><span>Manutenção</span><strong>{maintenance}</strong></div><p className="report-footnote">São considerados orçamentos, contratos e ordens de serviço cadastrados.</p></article></section></>;
 }
