@@ -138,6 +138,24 @@ export async function buildDocumentPdf(kind: "quotes" | "contracts" | "orders", 
   return doc.finish();
 }
 
+export async function buildFinanceReceiptPdf(record: PdfRecord, logoBytes?: Uint8Array) {
+  const title = "RECIBO DE PAGAMENTO";
+  const number = text(record.receiptNumber);
+  const doc = await makeComposer(logoBytes); doc.addPage(title, number);
+  doc.infoGrid([
+    ["Cliente", text(record.customerName)],
+    ["CPF / CNPJ", text(record.customerDocument)],
+    ["Data do recebimento", date(record.paidAt || record.dueDate)],
+    ["Forma de pagamento", text(record.paymentMethod)],
+  ], title, number);
+  doc.callout("Valor recebido", money(record.amountCents), title, number);
+  doc.section("Referente a", record.reference, title, number);
+  doc.section("Categoria", record.category, title, number);
+  doc.section("Observações", record.notes, title, number);
+  doc.section("Informação documental", "Este recibo comprova o recebimento registrado na plataforma e não substitui documento fiscal quando sua emissão for exigida pela legislação aplicável.", title, number);
+  return doc.finish();
+}
+
 export async function buildSummaryReportPdf(report: SummaryReport, logoBytes?: Uint8Array) {
   const title = "RELATÓRIO GERENCIAL"; const number = `Consolidado • ${issuedAt()}`;
   const doc = await makeComposer(logoBytes); doc.addPage(title, number);
