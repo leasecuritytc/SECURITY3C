@@ -43,6 +43,13 @@
       "when": 1789940628009,
       "tag": "0005_organic_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1790097023504,
+      "tag": "0006_daily_argent",
+      "breakpoints": true
     }
   ]
 }
