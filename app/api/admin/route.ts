@@ -65,8 +65,40 @@ export async function POST(request: Request) {
       if (!clean(p.name) || !clean(p.itemType) || !clean(p.serviceMode) || !Number.isFinite(Number(p.price))) return Response.json({ error: "Preencha nome, tipo, aplicação e preço" }, { status: 400 });
       [record] = await db.insert(catalogItems).values({ id, name: clean(p.name), itemType: clean(p.itemType), serviceMode: clean(p.serviceMode), category: clean(p.category), unit: clean(p.unit) || "un", priceCents: cents(p.price), warranty: clean(p.warranty), status: clean(p.status) || "Ativo", updatedAt }).returning();
     } else {
-      if (!clean(p.customerName) || !clean(p.reference) || !clean(p.dueDate) || !Number.isFinite(Number(p.amount))) return Response.json({ error: "Preencha cliente, referência, vencimento e valor" }, { status: 400 });
-      [record] = await db.insert(financeEntries).values({ id, customerName: clean(p.customerName), reference: clean(p.reference), dueDate: clean(p.dueDate), amountCents: cents(p.amount), status: clean(p.status) || "Pendente", notes: clean(p.notes), updatedAt }).returning();
+      const entryType = clean(p.entryType) || "Receita";
+      const customerType = clean(p.customerType) || "Cadastrado";
+      const status = clean(p.status) || "Pendente";
+      if (!["Receita", "Despesa"].includes(entryType) || !["Cadastrado", "Ocasional"].includes(customerType)) return Response.json({ error: "Tipo de lançamento ou cliente inválido" }, { status: 400 });
+      if (!clean(p.reference) || !clean(p.dueDate) || !Number.isFinite(Number(p.amount)) || Number(p.amount) <= 0) return Response.json({ error: "Preencha descrição, vencimento e valor maior que zero" }, { status: 400 });
+      let customerId = clean(p.customerId) || null;
+      let customerName = clean(p.customerName);
+      let customerDocument = clean(p.customerDocument);
+      let customerPhone = clean(p.customerPhone);
+      let customerEmail = clean(p.customerEmail);
+      if (customerType === "Cadastrado") {
+        if (!customerId) return Response.json({ error: "Selecione um cliente cadastrado" }, { status: 400 });
+        const [customer] = await db.select().from(customers).where(and(eq(customers.id, customerId), isNull(customers.deletedAt))).limit(1);
+        if (!customer) return Response.json({ error: "Cliente cadastrado não encontrado" }, { status: 400 });
+        customerName = customer.name; customerDocument = customer.document; customerPhone = customer.phone; customerEmail = customer.email;
+      } else {
+        if (!customerName) return Response.json({ error: "Informe o nome do cliente ocasional" }, { status: 400 });
+        customerId = null;
+        if (p.saveCustomer === true) {
+          const newCustomerId = crypto.randomUUID();
+          const [customer] = await db.insert(customers).values({ id: newCustomerId, name: customerName, personType: "Não informado", document: customerDocument, contactName: "", phone: customerPhone, email: customerEmail, address: "", city: "", notes: "Cliente incluído a partir do módulo financeiro.", status: "Ativo", updatedAt }).returning();
+          customerId = customer.id;
+          await log(db, { entity: "customers", entityId: customer.id, action: "Criação", description: "Cliente ocasional incluído pelo módulo Financeiro", actor: auth.actor!, after: customer });
+        }
+      }
+      const issueReceipt = p.issueReceipt === true;
+      if (issueReceipt && (entryType !== "Receita" || status !== "Pago")) return Response.json({ error: "Recibos são emitidos somente para receitas pagas" }, { status: 400 });
+      [record] = await db.insert(financeEntries).values({
+        id, customerName, customerId, customerType, customerDocument, customerPhone, customerEmail,
+        reference: clean(p.reference), dueDate: clean(p.dueDate), amountCents: cents(p.amount), entryType,
+        category: clean(p.category) || "Outros", paymentMethod: clean(p.paymentMethod) || "Não informado",
+        paidAt: clean(p.paidAt), receiptNumber: issueReceipt ? `REC-${new Date().getUTCFullYear()}-${id.slice(0, 8).toUpperCase()}` : "",
+        status, notes: clean(p.notes), updatedAt,
+      }).returning();
     }
     await log(db, { entity, entityId: id, action: "Criação", description: `Registro criado em ${labels[entity]}`, actor: auth.actor!, after: record });
     return Response.json({ record: expose(entity, record) }, { status: 201 });
@@ -91,7 +123,28 @@ export async function PUT(request: Request) {
     }
     else if (entity === "orders") { [before] = await db.select().from(workOrders).where(and(eq(workOrders.id, id), isNull(workOrders.deletedAt))).limit(1); [record] = await db.update(workOrders).set({ customerName: clean(p.customerName), serviceMode: clean(p.serviceMode), serviceType: clean(p.serviceType), status: clean(p.status), scheduledAt: clean(p.scheduledAt), technician: clean(p.technician), issue: clean(p.issue), diagnosis: clean(p.diagnosis), materials: clean(p.materials), warranty: clean(p.warranty), updatedAt }).where(eq(workOrders.id, id)).returning(); }
     else if (entity === "catalog") { [before] = await db.select().from(catalogItems).where(and(eq(catalogItems.id, id), isNull(catalogItems.deletedAt))).limit(1); [record] = await db.update(catalogItems).set({ name: clean(p.name), itemType: clean(p.itemType), serviceMode: clean(p.serviceMode), category: clean(p.category), unit: clean(p.unit), priceCents: cents(p.price), warranty: clean(p.warranty), status: clean(p.status), updatedAt }).where(eq(catalogItems.id, id)).returning(); }
-    else { [before] = await db.select().from(financeEntries).where(and(eq(financeEntries.id, id), isNull(financeEntries.deletedAt))).limit(1); [record] = await db.update(financeEntries).set({ customerName: clean(p.customerName), reference: clean(p.reference), dueDate: clean(p.dueDate), amountCents: cents(p.amount), status: clean(p.status), notes: clean(p.notes), updatedAt }).where(eq(financeEntries.id, id)).returning(); }
+    else {
+      [before] = await db.select().from(financeEntries).where(and(eq(financeEntries.id, id), isNull(financeEntries.deletedAt))).limit(1);
+      if (before?.receiptNumber) return Response.json({ error: "Recibos emitidos não podem ser alterados. Faça um novo lançamento se necessário." }, { status: 409 });
+      const entryType = clean(p.entryType) || "Receita"; const customerType = clean(p.customerType) || "Cadastrado";
+      if (!["Receita", "Despesa"].includes(entryType) || !["Cadastrado", "Ocasional"].includes(customerType) || !clean(p.reference) || !clean(p.dueDate) || !Number.isFinite(Number(p.amount)) || Number(p.amount) <= 0) return Response.json({ error: "Revise os dados obrigatórios do lançamento" }, { status: 400 });
+      let customerId = clean(p.customerId) || null; let customerName = clean(p.customerName); let customerDocument = clean(p.customerDocument); let customerPhone = clean(p.customerPhone); let customerEmail = clean(p.customerEmail);
+      if (customerType === "Cadastrado") {
+        if (!customerId) return Response.json({ error: "Selecione um cliente cadastrado" }, { status: 400 });
+        const [customer] = await db.select().from(customers).where(and(eq(customers.id, customerId), isNull(customers.deletedAt))).limit(1);
+        if (!customer) return Response.json({ error: "Cliente cadastrado não encontrado" }, { status: 400 });
+        customerName = customer.name; customerDocument = customer.document; customerPhone = customer.phone; customerEmail = customer.email;
+      } else {
+        customerId = null;
+        if (!customerName) return Response.json({ error: "Informe o nome do cliente ocasional" }, { status: 400 });
+      }
+      [record] = await db.update(financeEntries).set({
+        customerName, customerId, customerType, customerDocument, customerPhone, customerEmail,
+        reference: clean(p.reference), dueDate: clean(p.dueDate), amountCents: cents(p.amount), entryType,
+        category: clean(p.category) || "Outros", paymentMethod: clean(p.paymentMethod) || "Não informado",
+        paidAt: clean(p.paidAt), status: clean(p.status) || "Pendente", notes: clean(p.notes), updatedAt,
+      }).where(eq(financeEntries.id, id)).returning();
+    }
     if (!before || !record) return Response.json({ error: "Registro não encontrado" }, { status: 404 });
     await log(db, { entity, entityId: id, action: "Edição", description: `Registro atualizado em ${labels[entity]}`, actor: auth.actor!, before, after: record });
     return Response.json({ record: expose(entity, record) });
