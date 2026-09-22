@@ -75,9 +75,19 @@ export const catalogItems = sqliteTable("catalog_items", {
 export const financeEntries = sqliteTable("finance_entries", {
   id: text("id").primaryKey(), companyId: text("company_id").notNull().default("securitytc"), customerName: text("customer_name").notNull(),
   reference: text("reference").notNull(), dueDate: text("due_date").notNull(), amountCents: integer("amount_cents").notNull(),
+  entryType: text("entry_type").notNull().default("Receita"), customerType: text("customer_type").notNull().default("Cadastrado"),
+  customerId: text("customer_id"), customerDocument: text("customer_document").notNull().default(""),
+  customerPhone: text("customer_phone").notNull().default(""), customerEmail: text("customer_email").notNull().default(""),
+  category: text("category").notNull().default("Outros"), paymentMethod: text("payment_method").notNull().default("Não informado"),
+  paidAt: text("paid_at").notNull().default(""), receiptNumber: text("receipt_number").notNull().default(""),
   status: text("status").notNull().default("Pendente"), notes: text("notes").notNull().default(""),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), updatedAt: text("updated_at").notNull().default(""), deletedAt: text("deleted_at"),
-}, (table) => [index("idx_finance_company_due_date").on(table.companyId, table.dueDate), index("idx_finance_company_status").on(table.companyId, table.status)]);
+}, (table) => [
+  index("idx_finance_company_due_date").on(table.companyId, table.dueDate),
+  index("idx_finance_company_status").on(table.companyId, table.status),
+  index("idx_finance_company_type").on(table.companyId, table.entryType),
+  index("idx_finance_company_customer").on(table.companyId, table.customerId),
+]);
 
 export const auditLogs = sqliteTable("audit_logs", {
   id: text("id").primaryKey(), companyId: text("company_id").notNull().default("securitytc"), entityType: text("entity_type").notNull(),
