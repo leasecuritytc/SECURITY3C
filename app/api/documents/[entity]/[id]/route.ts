@@ -1,12 +1,14 @@
 import { and, count, eq, isNull } from "drizzle-orm";
 import { getDb } from "../../../../../db";
 import { catalogItems, contracts, customers, financeEntries, quotes, servicePhotos, workOrders } from "../../../../../db/schema";
+import { buildDocumentDocx, buildFinanceReceiptDocx, buildSummaryReportDocx, type DocumentSummaryReport } from "../../../../../lib/docx-documents";
 import { buildDocumentPdf, buildFinanceReceiptPdf, buildSummaryReportPdf } from "../../../../../lib/pdf-documents";
 import { getAuthorizedAdminUser } from "../../../../chatgpt-auth";
 
 export async function GET(request: Request, context: { params: Promise<{ entity: string; id: string }> }) {
   const user = await getAuthorizedAdminUser(); if (!user) return Response.json({ error: "Acesso não autorizado" }, { status: 403 });
   const { entity, id } = await context.params;
+  const format = new URL(request.url).searchParams.get("format") === "docx" ? "docx" : "pdf";
   if (!["quotes", "contracts", "orders", "finance", "reports"].includes(entity)) return Response.json({ error: "Documento inválido" }, { status: 400 });
   let logoBytes: Uint8Array | undefined;
   try { const logoResponse = await fetch(new URL("/securitytc-logo.png", request.url)); if (logoResponse.ok) logoBytes = new Uint8Array(await logoResponse.arrayBuffer()); } catch { logoBytes = undefined; }
@@ -22,15 +24,16 @@ export async function GET(request: Request, context: { params: Promise<{ entity:
       db.select({ id: financeEntries.id, amountCents: financeEntries.amountCents, status: financeEntries.status, entryType: financeEntries.entryType }).from(financeEntries).where(isNull(financeEntries.deletedAt)),
     ]);
     const modes = [...quoteRows, ...contractRows, ...orderRows];
-    const bytes = await buildSummaryReportPdf({
+    const report: DocumentSummaryReport = {
       generatedBy: user.fullName || user.email,
       customers: customerRows.length, quotes: quoteRows.length, contracts: contractRows.length, orders: orderRows.length, catalog: catalogRows.length, finance: financeRows.length,
       installation: modes.filter((row) => row.serviceMode === "Instalação").length,
       maintenance: modes.filter((row) => row.serviceMode === "Manutenção").length,
       receivedCents: financeRows.filter((row) => row.entryType === "Receita" && row.status === "Pago").reduce((sum, row) => sum + row.amountCents, 0),
       openCents: financeRows.filter((row) => row.entryType === "Receita" && (row.status === "Pendente" || row.status === "Vencido" || row.status === "Parcial")).reduce((sum, row) => sum + row.amountCents, 0),
-    }, logoBytes);
-    return new Response(bytes as BodyInit, { headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="relatorio-gerencial-security3c.pdf"`, "Cache-Control": "private, no-store" } });
+    };
+    const bytes = format === "docx" ? buildSummaryReportDocx(report, logoBytes) : await buildSummaryReportPdf(report, logoBytes);
+    return download(bytes, `relatorio-gerencial-security3c.${format}`, format);
   }
   if (entity === "quotes") [record] = await db.select().from(quotes).where(and(eq(quotes.id, id), isNull(quotes.deletedAt))).limit(1);
   else if (entity === "contracts") [record] = await db.select().from(contracts).where(and(eq(contracts.id, id), isNull(contracts.deletedAt))).limit(1);
@@ -44,12 +47,17 @@ export async function GET(request: Request, context: { params: Promise<{ entity:
   }
   if (!record) return Response.json({ error: "Registro não encontrado" }, { status: 404 });
   if (entity === "finance") {
-    const bytes = await buildFinanceReceiptPdf(record, logoBytes);
+    const bytes = format === "docx" ? buildFinanceReceiptDocx(record, logoBytes) : await buildFinanceReceiptPdf(record, logoBytes);
     const receiptNumber = text(record.receiptNumber).replace(/[^a-zA-Z0-9_-]/g, "-");
-    return new Response(bytes as BodyInit, { headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="${receiptNumber}.pdf"`, "Cache-Control": "private, no-store" } });
+    return download(bytes, `${receiptNumber}.${format}`, format);
   }
-  const bytes = await buildDocumentPdf(entity as "quotes" | "contracts" | "orders", record, photoCount, logoBytes);
+  const kind = entity as "quotes" | "contracts" | "orders";
+  const bytes = format === "docx" ? buildDocumentDocx(kind, record, photoCount, logoBytes) : await buildDocumentPdf(kind, record, photoCount, logoBytes);
   const number = text(record.number).replace(/[^a-zA-Z0-9_-]/g, "-");
-  return new Response(bytes as BodyInit, { headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="${number}.pdf"`, "Cache-Control": "private, no-store" } });
+  return download(bytes, `${number}.${format}`, format);
 }
 function text(value: unknown) { return String(value ?? "documento"); }
+function download(bytes: Uint8Array, filename: string, format: "pdf" | "docx") {
+  const contentType = format === "docx" ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document" : "application/pdf";
+  return new Response(bytes as BodyInit, { headers: { "Content-Type": contentType, "Content-Disposition": `attachment; filename="${filename}"`, "Cache-Control": "private, no-store" } });
+}
