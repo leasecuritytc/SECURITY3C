@@ -52,20 +52,23 @@ async function makeComposer(logoBytes?: Uint8Array) {
   const pages: PDFPage[] = [];
 
   function header(documentTitle: string, documentNumber: string) {
-    page.drawRectangle({ x: 0, y: PAGE_HEIGHT - 86, width: PAGE_WIDTH, height: 86, color: deepGreen });
-    page.drawRectangle({ x: 0, y: PAGE_HEIGHT - 91, width: PAGE_WIDTH, height: 5, color: gold });
+    page.drawRectangle({ x: 0, y: PAGE_HEIGHT - 98, width: PAGE_WIDTH, height: 98, color: deepGreen });
+    page.drawRectangle({ x: 0, y: PAGE_HEIGHT - 103, width: PAGE_WIDTH, height: 5, color: gold });
     if (logo) {
-      const scale = Math.min(42 / logo.height, 36 / logo.width);
-      page.drawImage(logo, { x: MARGIN, y: PAGE_HEIGHT - 74, width: logo.width * scale, height: logo.height * scale });
+      const scale = Math.min(58 / logo.height, 46 / logo.width);
+      page.drawImage(logo, { x: MARGIN, y: PAGE_HEIGHT - 82, width: logo.width * scale, height: logo.height * scale });
     }
-    const brandX = logo ? 97 : MARGIN;
-    page.drawText("SECURITY3C", { x: brandX, y: PAGE_HEIGHT - 42, size: 16, font: bold, color: rgb(1, 1, 1) });
-    page.drawText("SOLUÇÕES INTELIGENTES", { x: brandX, y: PAGE_HEIGHT - 58, size: 7.5, font: bold, color: gold });
-    page.drawText(documentTitle, { x: MARGIN, y: PAGE_HEIGHT - 124, size: 16, font: bold, color: ink });
-    page.drawText(documentNumber, { x: MARGIN, y: PAGE_HEIGHT - 142, size: 8.5, font: regular, color: muted });
-    page.drawText(`EMISSÃO  ${issuedAt()}`, { x: 405, y: PAGE_HEIGHT - 139, size: 7.5, font: bold, color: olive });
-    page.drawLine({ start: { x: MARGIN, y: PAGE_HEIGHT - 154 }, end: { x: PAGE_WIDTH - MARGIN, y: PAGE_HEIGHT - 154 }, thickness: 0.8, color: border });
-    y = PAGE_HEIGHT - 178;
+    const brandX = logo ? 108 : MARGIN;
+    page.drawText("SECURITY3C", { x: brandX, y: PAGE_HEIGHT - 38, size: 17, font: bold, color: rgb(1, 1, 1) });
+    page.drawText("SOLUÇÕES INTELIGENTES", { x: brandX, y: PAGE_HEIGHT - 56, size: 8, font: bold, color: gold });
+    page.drawText("Segurança eletrônica • Automação • Tecnologia", { x: brandX, y: PAGE_HEIGHT - 73, size: 7, font: regular, color: rgb(.84, .87, .80) });
+    page.drawText("WWW.SECURITY3C.COM.BR", { x: 414, y: PAGE_HEIGHT - 40, size: 6.8, font: bold, color: gold });
+    page.drawText("@SECURITY3C", { x: 466, y: PAGE_HEIGHT - 57, size: 6.8, font: regular, color: rgb(.84, .87, .80) });
+    page.drawText(documentTitle, { x: MARGIN, y: PAGE_HEIGHT - 139, size: 16, font: bold, color: ink });
+    page.drawText(documentNumber, { x: MARGIN, y: PAGE_HEIGHT - 157, size: 8.5, font: regular, color: muted });
+    page.drawText(`EMISSÃO  ${issuedAt()}`, { x: 405, y: PAGE_HEIGHT - 154, size: 7.5, font: bold, color: olive });
+    page.drawLine({ start: { x: MARGIN, y: PAGE_HEIGHT - 169 }, end: { x: PAGE_WIDTH - MARGIN, y: PAGE_HEIGHT - 169 }, thickness: 0.8, color: border });
+    y = PAGE_HEIGHT - 193;
   }
   function addPage(documentTitle: string, documentNumber: string) { page = pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT]); pages.push(page); header(documentTitle, documentNumber); }
   function ensure(height: number, documentTitle: string, documentNumber: string) { if (y - height < 56) addPage(documentTitle, documentNumber); }
@@ -103,7 +106,7 @@ async function makeComposer(logoBytes?: Uint8Array) {
   function finish() {
     pages.forEach((current, index) => {
       current.drawLine({ start: { x: MARGIN, y: 36 }, end: { x: PAGE_WIDTH - MARGIN, y: 36 }, thickness: 0.6, color: border });
-      current.drawText("Security3C Soluções Inteligentes • Documento gerado pela plataforma de gestão", { x: MARGIN, y: 21, size: 6.8, font: regular, color: muted });
+      current.drawText("Security3C Soluções Inteligentes • www.security3c.com.br • @Security3C", { x: MARGIN, y: 21, size: 6.8, font: regular, color: muted });
       current.drawText(`Página ${index + 1} de ${pages.length}`, { x: 495, y: 21, size: 6.8, font: bold, color: muted });
     });
     return pdf.save();
